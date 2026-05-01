@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>積分バトルRPG</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' },
+      startup: { typeset: false }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .text-neon-cyan {
+        color: #0ff;
+        text-shadow: 0 0 5px #0ff;
+      }
+      .text-neon-pink {
+        color: #f0f;
+        text-shadow: 0 0 5px #f0f;
+      }
+      .text-neon-red {
+        color: #f00;
+        text-shadow: 0 0 5px #f00;
+      }
+      .text-neon-green {
+        color: #0f0;
+        text-shadow: 0 0 5px #0f0;
+      }
+      
+      .border-neon-cyan {
+        border-color: #0ff;
+        box-shadow: 0 0 4px #0ff, inset 0 0 4px #0ff;
+      }
+      .border-neon-pink {
+        border-color: #f0f;
+        box-shadow: 0 0 4px #f0f, inset 0 0 4px #f0f;
+      }
+    }
+    
+    html, body {
+      background-color: #050505;
+      color: #0ff;
+      font-family: 'Press Start 2P', 'Noto Sans JP', monospace;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden; /* スクロール防止 */
+      touch-action: manipulation;
+    }
+    
+    .scanlines {
+      background: linear-gradient(
+          to bottom,
+          rgba(255,255,255,0),
+          rgba(255,255,255,0) 50%,
+          rgba(0,0,0,0.3) 50%,
+          rgba(0,0,0,0.3)
+      );
+      background-size: 100% 4px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .crt-overlay {
+      background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 51;
+      animation: flicker 0.15s infinite;
+    }
+
+    @keyframes flicker {
+      0% { opacity: 0.95; }
+      50% { opacity: 1; }
+      100% { opacity: 0.95; }
+    }
+
+    @keyframes flashRed {
+      0% { background-color: rgba(255, 0, 0, 0.6); }
+      100% { background-color: transparent; }
+    }
+
+    .flash-red {
+      animation: flashRed 0.5s ease-out;
+    }
+
+    @keyframes flashWhite {
+      0% { background-color: rgba(255, 255, 255, 0.9); }
+      20% { background-color: rgba(0, 255, 255, 0.4); }
+      100% { background-color: transparent; }
+    }
+
+    @keyframes hitShake {
+      0% { transform: translate(0, 0) scale(1.2) rotate(0deg); filter: brightness(300%) drop-shadow(0 0 30px #0ff); }
+      15% { transform: translate(-20px, 15px) scale(1.1) rotate(-8deg); filter: brightness(250%) drop-shadow(0 0 30px #0ff) hue-rotate(90deg); }
+      30% { transform: translate(20px, -15px) scale(0.9) rotate(8deg); filter: brightness(200%) drop-shadow(0 0 30px #0f0) hue-rotate(180deg); }
+      45% { transform: translate(-15px, -20px) scale(1.2) rotate(-6deg); filter: brightness(250%) drop-shadow(0 0 30px #0ff) hue-rotate(270deg); }
+      60% { transform: translate(15px, 20px) scale(1.1) rotate(6deg); filter: brightness(200%) drop-shadow(0 0 30px #0ff) hue-rotate(360deg); }
+      75% { transform: translate(-10px, 10px) scale(1.0) rotate(-4deg); }
+      100% { transform: translate(0, 0) scale(1.0) rotate(0deg); filter: brightness(100%) drop-shadow(0 0 0px #0ff); }
+    }
+
+    .hit-animation {
+      animation: hitShake 0.4s ease-in-out forwards;
+    }
+
+    @keyframes clearBurst {
+      0% { transform: scale(0.5); opacity: 0; filter: brightness(100%); }
+      20% { transform: scale(2.5) rotate(10deg); opacity: 1; filter: brightness(300%) drop-shadow(0 0 50px #fff); }
+      50% { transform: scale(1.5) rotate(-5deg); opacity: 1; filter: brightness(200%) drop-shadow(0 0 30px #0f0); }
+      100% { transform: scale(1.8) rotate(0deg); opacity: 1; filter: brightness(130%) drop-shadow(0 0 50px #0f0); }
+    }
+    
+    @keyframes floatAnim {
+      from { transform: scale(1.8) translateY(0); filter: brightness(130%) drop-shadow(0 0 50px #0f0); }
+      to { transform: scale(1.9) translateY(-10px); filter: brightness(160%) drop-shadow(0 0 80px #ff0) hue-rotate(45deg); }
+    }
+
+    .clear-burst-anim {
+      animation: clearBurst 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, floatAnim 2s 1.5s ease-in-out infinite alternate;
+      z-index: 50;
+      position: relative;
+      pointer-events: none;
+    }
+
+    @keyframes gameOverDrop {
+      0% { transform: scale(1.2) translateY(-20px) rotate(5deg); filter: brightness(300%) drop-shadow(0 0 50px #f00); }
+      40% { transform: scale(0.9) translateY(5px) rotate(-5deg); filter: brightness(150%) hue-rotate(320deg) drop-shadow(0 0 40px #f00); }
+      70% { transform: scale(1.05) translateY(0px) rotate(2deg); filter: brightness(120%) drop-shadow(0 0 30px #f00); }
+      100% { transform: scale(1) translateY(10px) rotate(0deg); filter: brightness(100%) drop-shadow(0 0 40px #f00) contrast(1.2); }
+    }
+    
+    @keyframes gameOverFloat {
+      from { transform: scale(1) translateY(10px); filter: brightness(100%) drop-shadow(0 0 40px #f00) contrast(1.2); }
+      to { transform: scale(1.05) translateY(5px); filter: brightness(120%) drop-shadow(0 0 60px #f00) contrast(1.3); }
+    }
+
+    .game-over-anim {
+      animation: gameOverDrop 1.2s cubic-bezier(0.5, 0, 0.2, 1) forwards, gameOverFloat 2s 1.2s ease-in-out infinite alternate;
+      z-index: 50;
+      position: relative;
+      pointer-events: none;
+    }
+
+    @keyframes rotateRays {
+        from { transform: translate(-50%, -50%) rotate(0deg); }
+        to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    .rays-bg {
+        position: absolute;
+        top: 50%; left: 50%; width: 200%; height: 200%;
+        background: repeating-conic-gradient(from 0deg, transparent 0deg 15deg, rgba(0, 255, 0, 0.15) 15deg 30deg);
+        animation: rotateRays 20s linear infinite;
+        z-index: 10;
+        pointer-events: none;
+    }
+
+    @keyframes rainbowText {
+        0%, 100% { color: #ff0000; text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000; }
+        16% { color: #ffff00; text-shadow: 0 0 20px #ffff00, 0 0 40px #ffff00; }
+        33% { color: #00ff00; text-shadow: 0 0 20px #00ff00, 0 0 40px #00ff00; }
+        50% { color: #00ffff; text-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff; }
+        66% { color: #0000ff; text-shadow: 0 0 20px #0000ff, 0 0 40px #0000ff; }
+        83% { color: #ff00ff; text-shadow: 0 0 20px #ff00ff, 0 0 40px #ff00ff; }
+    }
+    .rainbow-text {
+        animation: rainbowText 3s linear infinite;
+    }
+    
+    .mathjax-container {
+      display: inline-block;
+      min-height: 1.5em;
+    }
+    
+    mjx-container {
+      display: inline-block !important;
+      margin: 0 !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="root" class="h-full w-full"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const M_OPTS = [2, 3, 4, 5, -1, -2, -3, -4, -5];
+    const A_OPTS = [2, 3, 5];
+
+    function r(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function gcd(a, b) {
+      a = Math.abs(a); b = Math.abs(b);
+      while (b) { let t = b; b = a % b; a = t; }
+      return a;
+    }
+
+    function ft(M, den, variable) { 
+      if (M === 0) return "0";
+      let sign = (M * den) < 0 ? "-" : "";
+      let num = Math.abs(M);
+      let d = Math.abs(den);
+      let g = gcd(num, d);
+      num /= g; d /= g;
+      
+      let coeff = "";
+      if (d === 1) {
+        if (num === 1 && variable !== "") coeff = sign;
+        else coeff = sign + num;
+      } else {
+        if (num === 1 && variable !== "") {
+           if (sign === "-") return `-\\frac{${variable}}{${d}}`;
+           return `\\frac{${variable}}{${d}}`; 
+        } else {
+           coeff = `${sign}\\frac{${num}}{${d}}`;
+        }
+      }
+      
+      if (coeff === "-" && variable !== "") return "-" + variable;
+      return coeff + variable;
+    }
+    
+    function ff(num, denVar) {
+      if (num === 0) return "0";
+      let sign = num < 0 ? "-" : "";
+      let absN = Math.abs(num);
+      return `${sign}\\frac{${absN}}{${denVar}}`;
+    }
+
+    function getTerm(p) {
+        let M = r(M_OPTS);
+        let a = r(A_OPTS);
+        let alpha = r([-4,-3,-2,2,3,4,5]);
+        let cAns, d1, d2, d3, d4, d5, qTerm;
+
+        let forcedAlpha = null;
+        if (p === 9) forcedAlpha = r([{p: -3, q: 1}, {p: -4, q: 1}, {p: -5, q: 1}]); 
+        if (p === 10) forcedAlpha = r([{p: 1, q: 3}, {p: 1, q: 4}, {p: 2, q: 3}]); 
+        if (p === 11) forcedAlpha = {p: 3, q: 2}; 
+        if (p === 12) forcedAlpha = {p: -1, q: 2}; 
+        if (p === 13) forcedAlpha = {p: -4, q: 1};
+        if (p === 15) forcedAlpha = {p: 1, q: 2};
+        if (p === 16) forcedAlpha = {p: -1, q: 2};
+
+        if (p === 1 || forcedAlpha) {
+            let alphaObj = forcedAlpha || r([
+                {p: -4, q: 1}, {p: -3, q: 1}, {p: -2, q: 1}, {p: 2, q: 1}, {p: 3, q: 1}, {p: 4, q: 1}, {p: 5, q: 1},
+                {p: 1, q: 2}, {p: 1, q: 3}, {p: 3, q: 2}, {p: 1, q: 4}, {p: 2, q: 3},
+                {p: -1, q: 2}, {p: -1, q: 3}, {p: -2, q: 3}, {p: -3, q: 2}
+            ]);
+            let ap = alphaObj.p;
+            let aq = alphaObj.q;
+            
+            function mt(num, den, p, q) {
+              if (num === 0) return "0";
+              let s = (num * den) < 0 ? "-" : "";
+              let n = Math.abs(num);
+              let d = Math.abs(den);
+              let g = gcd(n, d);
+              n /= g; d /= g;
+              
+              let xStr = "";
+              let isDenom = false;
+              let absP = Math.abs(p);
+              
+              if (p < 0) {
+                 isDenom = true;
+              }
+              
+              if (absP === 0) {
+                 xStr = "";
+              } else if (q === 1) {
+                 xStr = absP === 1 ? "x" : `x^{${absP}}`;
+              } else if (q === 2) {
+                 if (absP === 1) xStr = "\\sqrt{x}";
+                 else if (absP === 3) xStr = "x\\sqrt{x}";
+                 else xStr = `x^{\\frac{${absP}}{2}}`;
+              } else {
+                 if (absP === 1) xStr = `x^{\\frac{1}{${q}}}`;
+                 else xStr = `x^{\\frac{${absP}}{${q}}}`;
+              }
+              
+              if (isDenom) {
+                 if (n === 1 && d === 1) {
+                     return `${s}\\frac{1}{${xStr}}`;
+                 } else if (d === 1) {
+                     return `${s}\\frac{${n}}{${xStr}}`;
+                 } else {
+                     return `${s}\\frac{${n}}{${d}${xStr}}`;
+                 }
+              } else {
+                 if (n === 1 && d === 1) return xStr === "" ? s + "1" : (s === "-" ? "-" + xStr : xStr);
+                 if (d === 1) return s + n + xStr;
+                 if (n === 1 && xStr !== "") return s === "-" ? `-\\frac{${xStr}}{${d}}` : `\\frac{${xStr}}{${d}}`;
+                 return `${s}\\frac{${n}}{${d}}${xStr}`;
+              }
+            }
+
+            let num = M;
+            let den = 1;
+            if (p === 16) { num = 1; den = M; }
+
+            qTerm = mt(num, den, ap, aq);
+            cAns = mt(num * aq, den * (ap + aq), ap + aq, aq);
+            d1 = mt(num * ap, den * aq, ap - aq, aq);
+            d2 = mt(num, den, ap + aq, aq);
+            d3 = mt(-num * aq, den * (ap + aq), ap + aq, aq);
+            d4 = mt(num, den, ap, aq);
+            d5 = mt(-num, den, ap + aq, aq);
+        } else if (p === 2) {
+            qTerm = ff(M, "x");
+            cAns = ft(M, 1, "\\log|x|");
+            d1 = ft(M, 1, "\\log x");
+            d2 = ft(-M, 1, "\\frac{1}{x^2}");
+            d3 = ft(M, 2, "x^2");
+            d4 = ft(-M, 1, "\\log|x|");
+            d5 = ft(M, 1, "\\frac{1}{x^2}");
+        } else if (p === 3) {
+            qTerm = ft(M, 1, "\\sin x");
+            cAns = ft(-M, 1, "\\cos x");
+            d1 = ft(M, 1, "\\cos x");
+            d2 = ft(-M, 1, "\\sin x");
+            d3 = ft(M, 1, "\\sin x");
+            d4 = ft(M, 2, "\\sin^2 x");
+            d5 = ft(-M, 2, "\\cos^2 x");
+        } else if (p === 4) {
+            qTerm = ft(M, 1, "\\cos x");
+            cAns = ft(M, 1, "\\sin x");
+            d1 = ft(-M, 1, "\\sin x");
+            d2 = ft(M, 1, "\\cos x");
+            d3 = ft(-M, 1, "\\cos x");
+            d4 = ft(-M, 2, "\\cos^2 x");
+            d5 = ft(M, 2, "\\sin^2 x");
+        } else if (p === 5) {
+            qTerm = ff(M, "\\cos^2 x");
+            cAns = ft(M, 1, "\\tan x");
+            d1 = ft(-M, 1, "\\tan x");
+            d2 = ff(M, "\\sin^2 x");
+            d3 = ff(-M, "\\tan x");
+            d4 = ft(M, 1, "\\frac{1}{\\tan x}");
+            d5 = ft(-M, 1, "\\frac{1}{\\tan x}");
+        } else if (p === 6) {
+            qTerm = ff(M, "\\sin^2 x");
+            cAns = ft(-M, 1, "\\frac{1}{\\tan x}"); 
+            d1 = ft(M, 1, "\\frac{1}{\\tan x}");
+            d2 = ft(-M, 1, "\\tan x");
+            d3 = ft(M, 1, "\\tan x");
+            d4 = ff(M, "\\cos^2 x");
+            d5 = ff(-M, "\\sin^2 x");
+        } else if (p === 7) {
+            qTerm = ft(M, 1, "e^x");
+            cAns = ft(M, 1, "e^x");
+            d1 = ft(M, 1, "x e^{x-1}");
+            d2 = ft(-M, 1, "e^x");
+            d3 = ft(M, 2, "e^{2x}");
+            d4 = ft(M, 1, "e^{x+1}");
+            d5 = ft(-M, 1, "x e^{x}");
+        } else if (p === 8) {
+            let mQ = M === 1 ? "" : M === -1 ? "-" : M + "\\cdot ";
+            qTerm = `${mQ}${a}^x`;
+            let mAns = Math.abs(M) === 1 ? "" : Math.abs(M) + "\\cdot ";
+            let sAns = M < 0 ? "-" : "";
+            cAns = `${sAns}\\frac{${mAns}${a}^x}{\\log ${a}}`;
+            
+            let d1M = M === 1 ? "" : M === -1 ? "-" : M + "\\cdot ";
+            d1 = `${d1M}${a}^x \\log ${a}`;
+            d2 = `${d1M}${a}^x`;
+            d3 = `${sAns === "-" ? "" : "-"}\\frac{${mAns}${a}^x}{\\log ${a}}`;
+            d4 = `${d1M}x ${a}^{x-1}`;
+            d5 = `${sAns}\\frac{${mAns}${a}^{x+1}}{x+1}`;
+        } else if (p === 14) {
+            qTerm = ft(M, 1, "e^{x+2}");
+            cAns = ft(M, 1, "e^{x+2}");
+            d1 = ft(M, 1, "e^{x+3}");
+            d2 = ft(-M, 1, "e^{x+2}");
+            d3 = ft(M, 2, "e^{x+2}");
+            d4 = ft(M, 1, "x e^{x+2}");
+            d5 = ft(M, 1, "e^{x+1}");
+        }
+        return { qTerm, cAns, d1, d2, d3, d4, d5 };
+    }
+
+    function joinTerms(termsArr) {
+        if (!termsArr || termsArr.length === 0) return "";
+        let res = termsArr[0];
+        for (let i = 1; i < termsArr.length; i++) {
+            if (termsArr[i].startsWith('-')) {
+                res += ' ' + termsArr[i];
+            } else {
+                res += ' + ' + termsArr[i];
+            }
+        }
+        return res;
+    }
+
+    function generateQ(isCombined, forcedP = null) {
+      let terms = [];
+      if (isCombined) {
+          // 10問目のみ2つのパターンの足し算にする
+          let pOptions = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16].sort(()=>Math.random()-0.5);
+          terms.push(getTerm(pOptions[0]));
+          terms.push(getTerm(pOptions[1]));
+      } else {
+          terms.push(getTerm(forcedP !== null ? forcedP : Math.floor(Math.random() * 16) + 1));
+      }
+
+      let qBody = joinTerms(terms.map(t => t.qTerm));
+      let q = `\\int \\left( ${qBody} \\right) \\,dx`;
+      if (!isCombined) {
+          q = `\\int ${terms[0].qTerm} \\,dx`;
+          if (terms[0].qTerm.includes('+') || terms[0].qTerm.substring(1).includes('-')) {
+              q = `\\int \\left( ${terms[0].qTerm} \\right) \\,dx`;
+          }
+      }
+
+      let cAns = joinTerms(terms.map(t => t.cAns)) + " + C";
+      let allChoices = [];
+      if (terms.length === 1) {
+          allChoices = [
+              terms[0].d1 + " + C",
+              terms[0].d2 + " + C",
+              terms[0].d3 + " + C",
+              terms[0].d4 + " + C",
+              terms[0].d5 + " + C",
+              cAns.replace(" + C", "")
+          ].filter(Boolean);
+      } else {
+          let t1 = terms[0], t2 = terms[1];
+          allChoices = [
+              cAns.replace(" + C", ""),
+              joinTerms([t1.cAns, t2.d1]) + " + C",
+              joinTerms([t1.d1, t2.cAns]) + " + C",
+              joinTerms([t1.d1, t2.d1]) + " + C",
+              joinTerms([t1.cAns, t2.d2]) + " + C",
+              joinTerms([t1.d2, t2.cAns]) + " + C",
+              joinTerms([t1.d2, t2.d2]) + " + C",
+              joinTerms([t1.cAns, t2.d3]) + " + C",
+              joinTerms([t1.d3, t2.cAns]) + " + C",
+              joinTerms([t1.d3, t2.d3]) + " + C",
+              joinTerms([t1.cAns, t2.d4]) + " + C",
+              joinTerms([t1.d4, t2.cAns]) + " + C",
+              joinTerms([t1.d4, t2.d4]) + " + C",
+          ].filter(Boolean);
+      }
+
+      let uniqueChoices = Array.from(new Set(allChoices));
+      uniqueChoices.sort(() => Math.random() - 0.5);
+      
+      let choices = [cAns];
+      for (let c of uniqueChoices) {
+        if (c !== cAns && choices.length < 4) {
+          choices.push(c);
+        }
+      }
+      
+      while (choices.length < 4) {
+          choices.push(cAns + ` + ${choices.length}`);
+      }
+
+      choices.sort(() => Math.random() - 0.5);
+
+      return { q, cAns, choices };
+    }
+
+    const ASSETS = {
+      NORMAL: "https://cdn.jsdelivr.net/gh/kinoshitatomofumi62/my-assets@main/aag0.png",
+      HIT: "https://cdn.jsdelivr.net/gh/kinoshitatomofumi62/my-assets@main/aag2.png",
+      ATTACK: "https://cdn.jsdelivr.net/gh/kinoshitatomofumi62/my-assets@main/aag1.png",
+      DEFEAT: "https://cdn.jsdelivr.net/gh/kinoshitatomofumi62/my-assets@main/aag3.png",
+      WIN_MISS: "https://cdn.jsdelivr.net/gh/kinoshitatomofumi62/my-assets@main/aag4.png",
+      WIN_PERFECT: "https://cdn.jsdelivr.net/gh/kinoshitatomofumi62/my-assets@main/aag5.png"
+    };
+
+    function MathJaxComponent({ math }) {
+      const nodeRef = useRef(null);
+      
+      useEffect(() => {
+        if (window.MathJax && window.MathJax.typesetPromise && nodeRef.current) {
+            window.MathJax.typesetClear([nodeRef.current]);
+            nodeRef.current.innerHTML = `\\(${math}\\)`;
+            window.MathJax.typesetPromise([nodeRef.current]).catch(err => {
+                console.error('MathJax typeset failed', err);
+            });
+        } else if (nodeRef.current) {
+            nodeRef.current.innerHTML = `\\(${math}\\)`; 
+        }
+      }, [math]);
+
+      return <span ref={nodeRef} className="mathjax-container" />;
+    }
+
+    const App = () => {
+        const [gameState, setGameState] = useState('START'); 
+        const [questions, setQuestions] = useState([]);
+        const [qIndex, setQIndex] = useState(0);
+        const [hp, setHp] = useState(3);
+        const [combo, setCombo] = useState(0);
+        const [score, setScore] = useState(0);
+        const [timeLeft, setTimeLeft] = useState(30);
+        const [mistakes, setMistakes] = useState([]);
+        const [monsterState, setMonsterState] = useState('NORMAL');
+        const [flashRed, setFlashRed] = useState(false);
+        const [flashWhite, setFlashWhite] = useState(false);
+        const [showAnswerStatus, setShowAnswerStatus] = useState(null);
+        const [selectedChoice, setSelectedChoice] = useState(null);
+        const [earnedBonus, setEarnedBonus] = useState(0);
+
+        useEffect(() => {
+            // Preload images
+            Object.values(ASSETS).forEach(src => {
+                const img = new Image();
+                img.src = src;
+            });
+        }, []);
+
+        const startGame = () => {
+           let patternCounts = {};
+           const qs = [];
+           for(let i=0; i<10; i++) {
+               if (i === 9) {
+                   qs.push(generateQ(true));
+               } else {
+                   let availablePatterns = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16].filter(p => (patternCounts[p] || 0) < 2);
+                   let p = availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
+                   patternCounts[p] = (patternCounts[p] || 0) + 1;
+                   qs.push(generateQ(false, p));
+               }
+           }
+           setQuestions(qs);
+           setQIndex(0);
+           setHp(3);
+           setCombo(0);
+           setScore(0);
+           setMistakes([]);
+           setMonsterState('NORMAL');
+           setShowAnswerStatus(null);
+           setSelectedChoice(null);
+           setEarnedBonus(0);
+           setGameState('PLAYING');
+           setTimeLeft(30); // 複合問題対応で少し長めに
+        }
+
+        const handleTimeout = useCallback(() => {
+            if (showAnswerStatus || gameState !== 'PLAYING') return;
+            setSelectedChoice('TIME UP');
+            handleMistake('TIME UP');
+        }, [hp, mistakes, combo, qIndex, showAnswerStatus, gameState, questions]);
+
+        const nextQuestion = (curHp) => {
+            setShowAnswerStatus(null);
+            setSelectedChoice(null);
+            if (qIndex + 1 === 10) {
+                setGameState('CLEAR');
+                setMonsterState('NORMAL');
+            } else {
+                setQIndex(idx => idx + 1);
+                setMonsterState('NORMAL');
+                setTimeLeft(30);
+            }
+        };
+
+        const handleMistake = (choice) => {
+            const currentQ = questions[qIndex];
+            setCombo(0);
+            const newHp = hp - 1;
+            setHp(newHp);
+            setMistakes(m => [...m, { q: currentQ.q, correct: currentQ.cAns, user: choice }]);
+            setMonsterState('ATTACK');
+            setShowAnswerStatus('INCORRECT');
+            setFlashRed(true);
+            setTimeout(() => setFlashRed(false), 500);
+            
+            setTimeout(() => {
+                if (newHp <= 0) {
+                    setGameState('GAMEOVER');
+                } else {
+                    nextQuestion(newHp);
+                }
+            }, 2500); // 答えを見せるために少し待つ
+        };
+
+        const handleAnswer = (choice) => {
+            if (showAnswerStatus || gameState !== 'PLAYING') return;
+            
+            const currentQ = questions[qIndex];
+            setSelectedChoice(choice);
+
+            if (choice === currentQ.cAns) {
+                const tBonus = Math.floor(timeLeft * 100);
+                setCombo(c => c + 1);
+                setScore(s => s + 100 + combo * 10 + tBonus);
+                setEarnedBonus(tBonus);
+                setMonsterState('HIT');
+                setShowAnswerStatus('CORRECT');
+                setFlashWhite(true);
+                setTimeout(() => setFlashWhite(false), 500);
+                
+                setTimeout(() => { nextQuestion(hp); }, 1500);
+            } else {
+                handleMistake(choice);
+            }
+        };
+
+        useEffect(() => {
+            if (gameState !== 'PLAYING' || showAnswerStatus) return;
+            let lastUpdate = performance.now();
+            const t = setInterval(() => {
+                const now = performance.now();
+                const dt = (now - lastUpdate) / 1000;
+                lastUpdate = now;
+                setTimeLeft(v => {
+                    if (v - dt <= 0) {
+                        setTimeout(handleTimeout, 0);
+                        return 30;
+                    }
+                    return v - dt;
+                });
+            }, 30);
+            return () => clearInterval(t);
+        }, [gameState, showAnswerStatus, handleTimeout]);
+
+        const renderHP = () => {
+           return Array(3).fill(0).map((_, i) => (
+              <span key={i} className={i < hp ? "text-neon-pink text-sm sm:text-xl" : "text-gray-700 text-sm sm:text-xl"}>♥</span>
+           ));
+        }
+
+        const getImage = () => {
+            if (gameState === 'GAMEOVER') return ASSETS.DEFEAT;
+            if (gameState === 'CLEAR') return mistakes.length === 0 ? ASSETS.WIN_PERFECT : ASSETS.WIN_MISS;
+            return ASSETS[monsterState] || ASSETS.NORMAL;
+        }
+
+        return (
+            <div className="relative h-[100dvh] flex flex-col justify-center p-2 max-w-2xl mx-auto z-10 font-mono overflow-hidden">
+                <div className={`absolute inset-0 z-[100] pointer-events-none transition-colors duration-200 ${flashRed ? 'bg-red-900/60' : ''} ${flashWhite ? 'bg-white/80' : ''}`}></div>
+                <div className="crt-overlay"></div>
+                <div className="scanlines"></div>
+
+                {/* CLEAR STAGE BACKGROUND EFFECT */}
+                {gameState === 'CLEAR' && <div className="rays-bg"></div>}
+
+                {/* CORRECT/MISS Overlay */}
+                {showAnswerStatus === 'CORRECT' && (
+                    <div className="absolute inset-0 flex items-center justify-center z-[200] pointer-events-none">
+                        <div className="animate-bounce flex flex-col items-center">
+                            <h2 className="text-4xl sm:text-6xl text-neon-green font-bold tracking-widest italic mb-2" style={{ textShadow: '0 0 20px #0f0, 0 0 40px #0f0, 0 0 60px #fff' }}>CORRECT!!</h2>
+                            <div className="flex flex-col items-center bg-black/60 px-6 py-2 rounded-xl border border-neon-cyan" style={{ textShadow: '0 0 10px #0ff' }}>
+                                <p className="text-neon-cyan text-3xl font-bold">+{100 + Math.max(0, combo - 1) * 10 + earnedBonus} PTS</p>
+                                {earnedBonus > 0 && <p className="text-yellow-300 text-sm mt-1 animate-pulse" style={{ textShadow: '0 0 5px #ff0' }}>TIME BONUS: +{earnedBonus}</p>}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                {showAnswerStatus === 'INCORRECT' && (
+                    <div className="absolute inset-0 flex items-center justify-center z-[200] pointer-events-none">
+                        <div className="flex flex-col items-center">
+                            <h2 className="text-5xl sm:text-7xl text-neon-red animate-pulse font-bold tracking-widest" style={{ textShadow: '0 0 20px #f00, 0 0 40px #f00, 0 0 60px #fff' }}>MISS...</h2>
+                            <p className="text-white text-xl mt-4 bg-black/70 px-4 py-2 border border-neon-red shadow-[0_0_10px_#f00]">正解の選択肢を確認せよ！</p>
+                        </div>
+                    </div>
+                )}
+
+                {(gameState === 'PLAYING' || gameState === 'CLEAR' || gameState === 'GAMEOVER') && (
+                    <div className="flex-none grid grid-cols-2 gap-1 text-[10px] sm:text-sm border-b-2 border-neon-cyan pb-1 sm:pb-2 select-none relative z-20 bg-black/40">
+                        <div className="text-neon-cyan flex items-center gap-1">HP: {renderHP()}</div>
+                        <div className="text-right text-neon-green flex justify-end items-center">SCORE: {score}</div>
+                        <div className="text-neon-cyan">STAGE: {gameState === 'PLAYING' ? qIndex + 1 : 10}/10</div>
+                        <div className="text-right text-neon-pink">COMBO: {combo}</div>
+                    </div>
+                )}
+
+                <div className="flex-none flex flex-col items-center justify-center relative z-20 w-full pt-0">
+                    {/* 画像エリア */}
+                    <div className={`flex-none w-full flex justify-center items-center z-10 ${['GAMEOVER', 'CLEAR'].includes(gameState) ? 'mt-4 mb-4 sm:mt-6 sm:mb-8' : 'mb-0'}`}>
+                        <img 
+                            src={getImage()} 
+                            alt="Monster" 
+                            loading="eager"
+                            className={`object-contain transition-all duration-200 pointer-events-none
+                                ${gameState === 'START' ? 'h-56 sm:h-72 md:h-64 lg:h-[45vh]' : 'h-40 sm:h-56 md:h-48 lg:h-[40vh]'}
+                                ${monsterState === 'HIT' ? 'hit-animation' : ''}
+                                ${monsterState === 'ATTACK' ? 'scale-125 translate-y-2 drop-shadow-[0_0_15px_#f00]' : ''}
+                                ${gameState === 'CLEAR' ? 'scale-110 clear-burst-anim drop-shadow-[0_0_20px_#0f0]' : ''}
+                                ${gameState === 'GAMEOVER' ? 'scale-110 game-over-anim' : ''}
+                            `} 
+                        />
+                    </div>
+
+                    {gameState === 'START' && (
+                        <div className="text-center flex-none mt-6 sm:mt-8 flex flex-col justify-center">
+                            <h1 className="text-3xl sm:text-4xl md:text-5xl text-neon-pink mb-4 sm:mb-6 leading-tight font-black">INTEGRAL<br/>BATTLE RPG</h1>
+                            <p className="text-neon-cyan text-[10px] sm:text-sm mb-6 flex flex-col gap-2 font-sans px-4">
+                                <span>正しい不定積分を選択し、<br/>モンスターを撃破せよ！</span>
+                                <span className="opacity-80">HP3 / 制限時間30秒<br/>STAGE8から複合問題出現！</span>
+                            </p>
+                            <button 
+                                onClick={startGame}
+                                className="border-2 border-neon-cyan py-3 sm:py-4 px-6 sm:px-10 text-sm sm:text-xl hover:bg-[#003333] hover:text-white transition-colors rounded-none shadow-[0_0_10px_#0ff]">
+                                START GAME
+                            </button>
+                        </div>
+                    )}
+
+                    {gameState === 'PLAYING' && questions[qIndex] && (
+                        <div className="flex-none flex flex-col w-full mt-2 sm:mt-4">
+                            <div className="flex justify-between items-end mb-1 px-1">
+                                <div className={`text-[10px] sm:text-sm ${timeLeft <= 5 ? 'text-neon-red animate-pulse' : 'text-neon-cyan'}`}>
+                                  TIME: <span className="text-lg sm:text-xl">{typeof timeLeft === 'number' ? timeLeft.toFixed(2) : timeLeft}</span>
+                                </div>
+                            </div>
+                            {/* 問題枠 */}
+                            <div className="bg-black/80 border-2 border-neon-cyan p-2 sm:p-4 rounded-none text-center mb-2 flex-none flex items-center justify-center min-h-[60px] sm:min-h-[80px] overflow-x-auto w-full text-2xl sm:text-4xl text-white py-4">
+                                <MathJaxComponent math={questions[qIndex].q} />
+                            </div>
+
+                            {/* 選択肢枠 */}
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4 flex-none w-full pb-2">
+                                {questions[qIndex].choices.map((choice, idx) => {
+                                    let btnClass = "bg-black/50 border-2 border-neon-pink p-2 sm:p-4 hover:bg-black/80 hover:border-white hover:shadow-[0_0_15px_rgba(255,255,255,0.5)] transition-all duration-200 rounded-none flex items-center justify-center min-h-[70px] sm:min-h-[100px] overflow-x-auto whitespace-nowrap text-base sm:text-xl lg:text-2xl";
+                                    
+                                    if (showAnswerStatus) {
+                                        if (choice === questions[qIndex].cAns) {
+                                            btnClass = "bg-[#004a00] border-2 border-neon-green p-2 sm:p-4 text-neon-green flex items-center justify-center min-h-[70px] sm:min-h-[100px] overflow-x-auto whitespace-nowrap animate-pulse shadow-[0_0_15px_#0f0] text-base sm:text-xl lg:text-2xl";
+                                        } else if (choice === selectedChoice) {
+                                            btnClass = "bg-[#4a0000] border-2 border-neon-red p-2 sm:p-4 text-neon-red flex items-center justify-center min-h-[70px] sm:min-h-[100px] overflow-x-auto whitespace-nowrap opacity-70 text-base sm:text-xl lg:text-2xl";
+                                        } else {
+                                            btnClass = "bg-black/20 border-2 border-gray-600 p-2 sm:p-4 text-gray-500 flex items-center justify-center opacity-30 min-h-[70px] sm:min-h-[100px] overflow-x-auto whitespace-nowrap text-base sm:text-xl lg:text-2xl";
+                                        }
+                                    }
+
+                                    return (
+                                        <button 
+                                            key={idx}
+                                            onClick={() => handleAnswer(choice)}
+                                            disabled={showAnswerStatus !== null}
+                                            className={btnClass}
+                                        >
+                                            <MathJaxComponent math={choice} />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {(gameState === 'GAMEOVER' || gameState === 'CLEAR') && (
+                        <div className="flex-1 w-full flex flex-col items-center mt-2 pb-4 min-h-0 z-20">
+                            <h2 className={`text-4xl sm:text-6xl mb-4 flex-none font-bold uppercase tracking-widest ${gameState === 'CLEAR' ? 'rainbow-text' : 'text-neon-red'}`} style={gameState === 'CLEAR' ? { fontStyle: 'italic' } : {}}>
+                                {gameState === 'CLEAR' ? 'STAGE CLEAR!!' : 'GAME OVER'}
+                            </h2>
+                            <p className={`text-xl sm:text-3xl font-bold mb-6 flex-none bg-black/80 px-6 py-2 border-2 ${gameState === 'CLEAR' ? 'border-neon-green text-neon-green shadow-[0_0_15px_#0f0]' : 'border-neon-cyan text-neon-cyan shadow-[0_0_10px_#0ff]'}`}>
+                                SCORE: {score}
+                            </p>
+                            
+                            <button 
+                                onClick={startGame}
+                                className={`border-2 py-3 px-8 text-lg sm:text-2xl transition-all duration-300 rounded-none mb-6 flex-none bg-black/90 font-bold ${gameState === 'CLEAR' ? 'border-neon-green text-white hover:bg-neon-green hover:text-black shadow-[0_0_15px_#0f0] animate-pulse' : 'border-neon-cyan text-neon-cyan hover:bg-[#003333] hover:text-white shadow-[0_0_10px_#0ff]'}`}>
+                                {gameState === 'CLEAR' ? 'PLAY AGAIN' : 'RETRY'}
+                            </button>
+
+                            {/* 履歴のスクロールエリア */}
+                            <div className="w-full flex-1 min-h-0 bg-black/80 p-2 sm:p-4 border-2 border-neon-pink rounded-none font-sans text-xs sm:text-sm shadow-[inset_0_0_15px_#f0f] flex flex-col pointer-events-auto">
+                                <h3 className="text-neon-pink text-center mb-4 font-mono font-bold tracking-widest border-b border-neon-pink pb-1 sticky top-0 bg-black/90 z-10 flex-none">-- LOG --</h3>
+                                <div className="overflow-y-auto flex-1 pr-1 min-w-0 w-full">
+                                {mistakes.length === 0 ? (
+                                    <p className="text-neon-green text-center py-4 font-bold">🎯 PERFECT!<br/>見事な積分戦闘術です！</p>
+                                ) : (
+                                    <ul className="space-y-4 min-w-0 w-full">
+                                        {mistakes.map((m, i) => (
+                                            <li key={i} className="border-b border-gray-800 pb-4 last:border-0 min-w-0 w-full text-base sm:text-lg">
+                                                <div className="mb-2 text-neon-cyan font-bold bg-white/5 p-2 border-l-2 border-neon-cyan overflow-x-auto whitespace-nowrap min-w-0">
+                                                    Q: <MathJaxComponent math={m.q} />
+                                                </div>
+                                                <div className="text-neon-green mb-2 pl-2 flex items-center overflow-x-auto whitespace-nowrap min-w-0">
+                                                    <span className="mr-1">◯正解:</span> <MathJaxComponent math={m.correct} />
+                                                </div>
+                                                <div className="text-neon-red pl-2 flex items-center overflow-x-auto whitespace-nowrap min-w-0">
+                                                    <span className="mr-1">×解答:</span> {m.user === 'TIME UP' ? '時間切れ' : <MathJaxComponent math={m.user} />}
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    const rootElement = document.getElementById('root');
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(<App />);
+
+  </script>
+</body>
+</html>
