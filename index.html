@@ -404,6 +404,134 @@
         return { qTerm, cAns, d1, d2, d3, d4, d5 };
     }
 
+    function formatFrac(num, den) {
+        if (num === 0) return "0";
+        let sign = (num * den) < 0 ? "-" : "";
+        let n = Math.abs(num);
+        let d = Math.abs(den);
+        let g = gcd(n, d);
+        n /= g; d /= g;
+        if (d === 1) {
+            if (n === 1) return sign === "-" ? "-" : ""; 
+            return sign + n;
+        }
+        return `${sign}\\frac{${n}}{${d}}`;
+    }
+
+    function getTermAxB() {
+        const AB_OPTS = [2, -2, 3, -3, 0.5, -0.5];
+        let a = r(AB_OPTS);
+        let b = r(AB_OPTS);
+        
+        let aN = (a === 0.5) ? 1 : ((a === -0.5) ? -1 : a);
+        let aD = (a === 0.5 || a === -0.5) ? 2 : 1;
+        let bN = (b === 0.5) ? 1 : ((b === -0.5) ? -1 : b);
+        let bD = (b === 0.5 || b === -0.5) ? 2 : 1;
+
+        let argStr = "";
+        if (aD === 2) argStr = aN === 1 ? "\\frac{x}{2}" : "-\\frac{x}{2}";
+        else argStr = aN === 1 ? "x" : (aN === -1 ? "-x" : aN + "x");
+        
+        if (bD === 2) argStr += (bN === 1 ? "+\\frac{1}{2}" : "-\\frac{1}{2}");
+        else argStr += (bN > 0 ? "+" + bN : bN);
+
+        let u = argStr;
+        let parenU = "\\left(" + argStr + "\\right)";
+
+        let p = r([1, 2, 3, 4, 5, 6, 7]);
+        let qTerm = "", cAns = "", d1 = "", d2 = "", d3 = "", d4 = "", d5 = "";
+
+        function combine(coeff, expr) {
+            if (coeff === "0") return "0";
+            if (coeff === "" && expr !== "") return expr;
+            if (coeff === "-" && expr !== "") return "-" + expr;
+            if (coeff === "" && expr === "") return "1";
+            if (coeff === "-" && expr === "") return "-1";
+            return coeff + expr;
+        }
+
+        if (p === 1) {
+            let n = r([2, 3]);
+            let M = r([1, -1, 2, -2, 3, -3]);
+            qTerm = combine(formatFrac(M, 1), parenU + "^{" + n + "}");
+            let cAnsCoeff = formatFrac(M * aD, aN * (n + 1));
+            cAns = combine(cAnsCoeff, parenU + "^{" + (n + 1) + "}");
+            d1 = combine(formatFrac(M, n + 1), parenU + "^{" + (n + 1) + "}");
+            d2 = combine(formatFrac(M * aN, aD * (n + 1)), parenU + "^{" + (n + 1) + "}");
+            d3 = combine(cAnsCoeff, parenU + "^{" + n + "}");
+            d4 = combine(formatFrac(-M * aD, aN * (n + 1)), parenU + "^{" + (n + 1) + "}");
+            d5 = combine(formatFrac(M * aD, aN * (n + 2)), parenU + "^{" + (n + 2) + "}");
+        } else if (p === 2) {
+            let M = r([1, -1, 2, -2, 3, -3]);
+            if (M === 1) qTerm = "\\frac{1}{" + parenU + "}";
+            else if (M === -1) qTerm = "-\\frac{1}{" + parenU + "}";
+            else qTerm = combine(formatFrac(M, 1), "\\frac{1}{" + parenU + "}");
+            let cAnsCoeff = formatFrac(M * aD, aN);
+            cAns = combine(cAnsCoeff, "\\log|" + u + "|");
+            d1 = combine(formatFrac(M, 1), "\\log|" + u + "|");
+            d2 = combine(formatFrac(M * aN, aD), "\\log|" + u + "|");
+            d3 = combine(formatFrac(-M * aD, aN), "\\log|" + u + "|");
+            d4 = combine(formatFrac(-M * aD, aN), "\\frac{1}{" + parenU + "}");
+            d5 = combine(formatFrac(M * aD, aN), "\\frac{1}{" + parenU + "}");
+        } else if (p === 3) {
+            let M = r([1, -1, 2, -2, 3, -3]);
+            qTerm = combine(formatFrac(M, 1), "\\cos" + parenU);
+            let cAnsCoeff = formatFrac(M * aD, aN);
+            cAns = combine(cAnsCoeff, "\\sin" + parenU);
+            d1 = combine(formatFrac(-M * aD, aN), "\\sin" + parenU);
+            d2 = combine(cAnsCoeff, "\\cos" + parenU);
+            d3 = combine(formatFrac(-M * aD, aN), "\\cos" + parenU);
+            d4 = combine(formatFrac(M, 1), "\\sin" + parenU);
+            d5 = combine(formatFrac(M * aN, aD), "\\sin" + parenU);
+        } else if (p === 4) {
+            let M = r([1, -1, 2, -2, 3, -3]);
+            qTerm = combine(formatFrac(M, 1), "\\sin" + parenU);
+            let cAnsCoeff = formatFrac(-M * aD, aN);
+            cAns = combine(cAnsCoeff, "\\cos" + parenU);
+            d1 = combine(formatFrac(M * aD, aN), "\\cos" + parenU);
+            d2 = combine(cAnsCoeff, "\\sin" + parenU);
+            d3 = combine(formatFrac(M * aD, aN), "\\sin" + parenU);
+            d4 = combine(formatFrac(-M, 1), "\\cos" + parenU);
+            d5 = combine(formatFrac(-M * aN, aD), "\\cos" + parenU);
+        } else if (p === 5) {
+            let M = r([1, -1, 2, -2, 3, -3]);
+            if (M === 1) qTerm = "\\frac{1}{\\cos^2" + parenU + "}";
+            else if (M === -1) qTerm = "-\\frac{1}{\\cos^2" + parenU + "}";
+            else qTerm = combine(formatFrac(M, 1), "\\frac{1}{\\cos^2" + parenU + "}");
+            let cAnsCoeff = formatFrac(M * aD, aN);
+            cAns = combine(cAnsCoeff, "\\tan" + parenU);
+            d1 = combine(formatFrac(-M * aD, aN), "\\tan" + parenU);
+            d2 = combine(formatFrac(M, 1), "\\tan" + parenU);
+            d3 = combine(cAnsCoeff, "\\frac{1}{\\tan" + parenU + "}");
+            d4 = combine(formatFrac(-M * aD, aN), "\\frac{1}{\\tan" + parenU + "}");
+            d5 = combine(formatFrac(M * aN, aD), "\\tan" + parenU);
+        } else if (p === 6) {
+            let M = r([1, -1, 2, -2, 3, -3]);
+            if (M === 1) qTerm = "\\frac{1}{\\sin^2" + parenU + "}";
+            else if (M === -1) qTerm = "-\\frac{1}{\\sin^2" + parenU + "}";
+            else qTerm = combine(formatFrac(M, 1), "\\frac{1}{\\sin^2" + parenU + "}");
+            let cAnsCoeff = formatFrac(-M * aD, aN);
+            cAns = combine(cAnsCoeff, "\\frac{1}{\\tan" + parenU + "}");
+            d1 = combine(formatFrac(M * aD, aN), "\\frac{1}{\\tan" + parenU + "}");
+            d2 = combine(formatFrac(-M, 1), "\\frac{1}{\\tan" + parenU + "}");
+            d3 = combine(cAnsCoeff, "\\tan" + parenU);
+            d4 = combine(formatFrac(M * aD, aN), "\\tan" + parenU);
+            d5 = combine(formatFrac(-M * aN, aD), "\\frac{1}{\\tan" + parenU + "}");
+        } else if (p === 7) {
+            let M = r([1, -1, 2, -2, 3, -3]);
+            qTerm = combine(formatFrac(M, 1), "e^{" + u + "}");
+            let cAnsCoeff = formatFrac(M * aD, aN);
+            cAns = combine(cAnsCoeff, "e^{" + u + "}");
+            d1 = combine(formatFrac(-M * aD, aN), "e^{" + u + "}");
+            d2 = combine(formatFrac(M, 1), "e^{" + u + "}");
+            d3 = combine(formatFrac(M * aN, aD), "e^{" + u + "}");
+            d4 = combine(cAnsCoeff, parenU + "e^{" + u + "-1}");
+            d5 = combine(formatFrac(M, 1), parenU + "e^{" + u + "}");
+        }
+        
+        return { qTerm, cAns, d1, d2, d3, d4, d5 };
+    }
+
     function joinTerms(termsArr) {
         if (!termsArr || termsArr.length === 0) return "";
         let res = termsArr[0];
@@ -420,21 +548,14 @@
     function generateQ(isCombined, forcedP = null) {
       let terms = [];
       if (isCombined) {
-          // 10問目のみ2つのパターンの足し算にする
-          let pOptions = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16].sort(()=>Math.random()-0.5);
-          terms.push(getTerm(pOptions[0]));
-          terms.push(getTerm(pOptions[1]));
+          terms.push(getTermAxB());
       } else {
           terms.push(getTerm(forcedP !== null ? forcedP : Math.floor(Math.random() * 16) + 1));
       }
 
-      let qBody = joinTerms(terms.map(t => t.qTerm));
-      let q = `\\int \\left( ${qBody} \\right) \\,dx`;
-      if (!isCombined) {
-          q = `\\int ${terms[0].qTerm} \\,dx`;
-          if (terms[0].qTerm.includes('+') || terms[0].qTerm.substring(1).includes('-')) {
-              q = `\\int \\left( ${terms[0].qTerm} \\right) \\,dx`;
-          }
+      let q = `\\int ${terms[0].qTerm} \\,dx`;
+      if (isCombined || terms[0].qTerm.includes('+') || terms[0].qTerm.substring(1).includes('-')) {
+          q = `\\int \\left( ${terms[0].qTerm} \\right) \\,dx`;
       }
 
       let cAns = joinTerms(terms.map(t => t.cAns)) + " + C";
@@ -536,6 +657,21 @@
                 img.src = src;
             });
         }, []);
+
+        useEffect(() => {
+            // ゲームオーバー時やクリア時は画面全体のスクロールを許可する
+            if (gameState === 'GAMEOVER' || gameState === 'CLEAR') {
+                document.body.style.overflow = 'auto';
+                document.body.style.touchAction = 'auto';
+            } else {
+                document.body.style.overflow = 'hidden';
+                document.body.style.touchAction = 'manipulation';
+            }
+            return () => {
+                document.body.style.overflow = 'hidden';
+                document.body.style.touchAction = 'manipulation';
+            };
+        }, [gameState]);
 
         const startGame = () => {
            let patternCounts = {};
@@ -656,7 +792,7 @@
         }
 
         return (
-            <div className="relative h-[100dvh] flex flex-col justify-center p-2 max-w-2xl mx-auto z-10 font-mono overflow-hidden">
+            <div className={`relative flex flex-col p-2 max-w-2xl mx-auto z-10 font-mono ${['GAMEOVER', 'CLEAR'].includes(gameState) ? 'min-h-[100dvh]' : 'h-[100dvh] overflow-hidden'}`}>
                 <div className={`absolute inset-0 z-[100] pointer-events-none transition-colors duration-200 ${flashRed ? 'bg-red-900/60' : ''} ${flashWhite ? 'bg-white/80' : ''}`}></div>
                 <div className="crt-overlay"></div>
                 <div className="scanlines"></div>
@@ -686,15 +822,15 @@
                 )}
 
                 {(gameState === 'PLAYING' || gameState === 'CLEAR' || gameState === 'GAMEOVER') && (
-                    <div className="flex-none grid grid-cols-2 gap-1 text-[10px] sm:text-sm border-b-2 border-neon-cyan pb-1 sm:pb-2 select-none relative z-20 bg-black/40">
-                        <div className="text-neon-cyan flex items-center gap-1">HP: {renderHP()}</div>
-                        <div className="text-right text-neon-green flex justify-end items-center">SCORE: {score}</div>
-                        <div className="text-neon-cyan">STAGE: {gameState === 'PLAYING' ? qIndex + 1 : 10}/10</div>
-                        <div className="text-right text-neon-pink">COMBO: {combo}</div>
+                    <div className="flex-none flex justify-between items-center gap-1 text-[10px] sm:text-sm border-b-2 border-neon-cyan pb-1 sm:pb-2 select-none relative z-20 bg-black/40 px-1">
+                        <div className="text-neon-cyan flex items-center gap-1 shrink-0">HP:{renderHP()}</div>
+                        <div className="text-neon-cyan shrink-0">STAGE:{gameState === 'PLAYING' ? qIndex + 1 : 10}/10</div>
+                        <div className="text-neon-pink shrink-0">COMBO:{combo}</div>
+                        <div className="text-neon-green shrink-0 font-bold">SCORE:{score}</div>
                     </div>
                 )}
 
-                <div className="flex-none flex flex-col items-center justify-center relative z-20 w-full pt-0">
+                <div className="flex-1 min-h-0 flex flex-col items-center relative z-20 w-full pt-0">
                     {/* 画像エリア */}
                     <div className={`flex-none w-full flex justify-center items-center z-10 ${['GAMEOVER', 'CLEAR'].includes(gameState) ? 'mt-4 mb-4 sm:mt-6 sm:mb-8' : 'mb-0'}`}>
                         <img 
@@ -727,7 +863,7 @@
                     )}
 
                     {gameState === 'PLAYING' && questions[qIndex] && (
-                        <div className="flex-none flex flex-col w-full mt-2 sm:mt-4">
+                        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain flex flex-col w-full mt-2 sm:mt-4 px-1" style={{ paddingBottom: '100px' }}>
                             <div className="flex justify-between items-end mb-1 px-1">
                                 <div className={`text-[10px] sm:text-sm ${timeLeft <= 5 ? 'text-neon-red animate-pulse' : 'text-neon-cyan'}`}>
                                   TIME: <span className="text-lg sm:text-xl">{typeof timeLeft === 'number' ? timeLeft.toFixed(2) : timeLeft}</span>
@@ -739,7 +875,7 @@
                             </div>
 
                             {/* 選択肢枠 */}
-                            <div className="grid grid-cols-2 gap-2 sm:gap-4 flex-none w-full pb-2">
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4 flex-none w-full pb-8 sm:pb-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 10px) + 20px)' }}>
                                 {questions[qIndex].choices.map((choice, idx) => {
                                     let btnClass = "bg-black/50 border-2 border-neon-pink p-2 sm:p-4 hover:bg-black/80 hover:border-white hover:shadow-[0_0_15px_rgba(255,255,255,0.5)] transition-all duration-200 rounded-none flex items-center justify-center min-h-[70px] sm:min-h-[100px] overflow-x-auto whitespace-nowrap text-base sm:text-xl lg:text-2xl";
                                     
@@ -769,7 +905,7 @@
                     )}
 
                     {(gameState === 'GAMEOVER' || gameState === 'CLEAR') && (
-                        <div className="flex-1 w-full flex flex-col items-center mt-2 pb-4 min-h-0 z-20">
+                        <div className="flex-none w-full flex flex-col items-center mt-2 pb-4 z-20">
                             <h2 className={`text-4xl sm:text-6xl mb-4 flex-none font-bold uppercase tracking-widest ${gameState === 'CLEAR' ? 'rainbow-text' : 'text-neon-red'}`} style={gameState === 'CLEAR' ? { fontStyle: 'italic' } : {}}>
                                 {gameState === 'CLEAR' ? 'STAGE CLEAR!!' : 'GAME OVER'}
                             </h2>
@@ -784,13 +920,13 @@
                             </button>
 
                             {/* 履歴のスクロールエリア */}
-                            <div className="w-full flex-1 min-h-0 bg-black/80 p-2 sm:p-4 border-2 border-neon-pink rounded-none font-sans text-xs sm:text-sm shadow-[inset_0_0_15px_#f0f] flex flex-col pointer-events-auto">
-                                <h3 className="text-neon-pink text-center mb-4 font-mono font-bold tracking-widest border-b border-neon-pink pb-1 sticky top-0 bg-black/90 z-10 flex-none">-- LOG --</h3>
-                                <div className="overflow-y-auto flex-1 pr-1 min-w-0 w-full">
+                            <div className="w-full flex-none bg-black/80 p-2 sm:p-4 border-2 border-neon-pink rounded-none font-sans text-xs sm:text-sm shadow-[inset_0_0_15px_#f0f] flex flex-col pointer-events-auto">
+                                <h3 className="text-neon-pink text-center mb-4 font-mono font-bold tracking-widest border-b border-neon-pink pb-1 flex-none">-- LOG --</h3>
+                                <div className="w-full">
                                 {mistakes.length === 0 ? (
                                     <p className="text-neon-green text-center py-4 font-bold">🎯 PERFECT!<br/>見事な積分戦闘術です！</p>
                                 ) : (
-                                    <ul className="space-y-4 min-w-0 w-full">
+                                    <ul className="space-y-4 min-w-0 w-full pointer-events-auto">
                                         {mistakes.map((m, i) => (
                                             <li key={i} className="border-b border-gray-800 pb-4 last:border-0 min-w-0 w-full text-base sm:text-lg">
                                                 <div className="mb-2 text-neon-cyan font-bold bg-white/5 p-2 border-l-2 border-neon-cyan overflow-x-auto whitespace-nowrap min-w-0">
